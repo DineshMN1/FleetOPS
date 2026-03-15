@@ -1,42 +1,174 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "xterm/css/xterm.css";
 
-// ✅ Dynamically import xterm only on the client
-const XTerm = dynamic(
-  async () => {
-    const mod = await import("xterm");
-    return mod.Terminal;
-  },
-  { ssr: false }
-);
+interface TerminalProps {
+  server: { id: number; name: string; host: string; port?: number; username?: string };
+  onClose?: () => void;
+}
 
-export default function SSHConsole({ server }: { server: any }) {
+export default function SSHConsole({ server, onClose }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<"connecting" | "connected" | "error" | "disconnected">("connecting");
+  const [statusMsg, setStatusMsg] = useState("");
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!terminalRef.current || !XTerm) return;
+    if (!terminalRef.current) return;
 
-    const term = new (XTerm as any)({
-      cursorBlink: true,
-      fontSize: 14,
-      theme: {
-        background: "#0a0a0a",
-        foreground: "#00ff99",
-      },
-    });
+    let term: any;
+    let ws: WebSocket;
+    let disposed = false;
 
-    term.open(terminalRef.current);
-    term.writeln(`\x1b[1;32mConnected to ${server.name}\x1b[0m`);
+    const init = async () => {
+      const { Terminal } = await import("xterm");
+      const { FitAddon } = await import("xterm-addon-fit");
 
-    return () => term.dispose();
-  }, [server]);
+      term = new Terminal({
+        cursorBlink: true,
+        fontSize: 13,
+        fontFamily: "'Cascadia Code', 'Fira Code', 'Courier New', monospace",
+        theme: {
+          background: "#0a0a0a",
+          foreground: "#00ff99",
+          cursor: "#00ff99",
+          selectionBackground: "#00ff9944",
+        },
+        scrollback: 5000,
+      });
+
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(terminalRef.current!);
+      fitAddon.fit();
+
+      const resizeObserver = new ResizeObserver(() => fitAddon.fit());
+      if (terminalRef.current) resizeObserver.observe(terminalRef.current);
+
+      term.writeln(
+        `\x1b[33mConnecting to ${server.name} (${server.host}:${server.port || 22})...\x1b[0m`
+      );
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(
+        `${protocol}//${window.location.host}/api/ws/terminal?serverId=${server.id}`
+      );
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        if (disposed) return;
+        try {
+          const msg = JSON.parse(event.data);
+
+          if (msg.type === "data") {
+            const binary = atob(msg.data);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            term.write(bytes);
+          } else if (msg.type === "status") {
+            if (msg.status === "connected") {
+              setStatus("connected");
+              setStatusMsg(msg.message || "");
+            } else if (msg.status === "closed") {
+              setStatus("disconnected");
+              setStatusMsg("Session closed");
+              term.writeln("\r\n\x1b[31mSSH session closed.\x1b[0m");
+            }
+          } else if (msg.type === "error") {
+            setStatus("error");
+            setStatusMsg(msg.message || "Connection error");
+            term.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
+          }
+        } catch {
+          term.write(event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        if (!disposed && status !== "disconnected") {
+          setStatus("disconnected");
+        }
+      };
+
+      ws.onerror = () => {
+        if (!disposed) {
+          setStatus("error");
+          setStatusMsg("WebSocket connection failed");
+          term.writeln("\r\n\x1b[31mWebSocket connection failed.\x1b[0m");
+        }
+      };
+
+      term.onData((data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const bytes = new TextEncoder().encode(data);
+          let binary = "";
+          bytes.forEach((b) => { binary += String.fromCharCode(b); });
+          ws.send(JSON.stringify({ type: "data", data: btoa(binary) }));
+        }
+      });
+
+      term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        }
+      });
+    };
+
+    init();
+
+    return () => {
+      disposed = true;
+      if (ws) ws.close();
+      if (term) term.dispose();
+      wsRef.current = null;
+    };
+  }, [server.id]);
+
+  const statusColor = {
+    connecting: "bg-blue-400 animate-pulse",
+    connected: "bg-green-400",
+    error: "bg-red-400",
+    disconnected: "bg-neutral-500",
+  }[status];
 
   return (
-    <div className="w-full border border-neutral-800 rounded-lg bg-black p-2">
-      <div ref={terminalRef} className="h-80" />
+    <div className="w-full border border-neutral-700 rounded-lg bg-black overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 bg-neutral-900 border-b border-neutral-700">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+          <span className="text-xs text-gray-400 font-mono">
+            {server.username ? `${server.username}@` : ""}
+            {server.host}:{server.port || 22}
+          </span>
+          <span className="text-xs text-gray-600">— {server.name}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {statusMsg && (
+            <span className="text-xs text-gray-600 max-w-48 truncate">{statusMsg}</span>
+          )}
+          {status === "error" && (
+            <a
+              href="/dashboard/settings"
+              className="text-xs text-yellow-400 hover:underline"
+            >
+              Check Settings →
+            </a>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-white text-xs px-2 py-0.5 rounded hover:bg-neutral-700"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Terminal */}
+      <div ref={terminalRef} className="h-80 p-1" />
     </div>
   );
 }

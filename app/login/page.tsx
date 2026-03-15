@@ -1,23 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/register")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.hasUsers) router.push("/register");
+      });
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+
     const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    if (res.ok) router.push("/dashboard");
-    else setError("Invalid credentials");
+
+    setLoading(false);
+
+    if (res.ok) {
+      router.push("/dashboard");
+    } else {
+      setError("Invalid credentials");
+    }
   };
 
   return (
@@ -25,7 +43,7 @@ export default function LoginPage() {
       <div className="w-1/2 flex flex-col justify-between bg-neutral-900 p-12">
         <h1 className="text-2xl font-semibold">FleetOps</h1>
         <p className="text-gray-400 text-sm">
-          “The Open Source alternative to Netlify, Vercel, Heroku.”
+          "The Open Source SSH Fleet Management Platform."
         </p>
       </div>
 
@@ -45,7 +63,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@fleetops.com"
+              placeholder="admin@example.com"
               className="w-full p-2 rounded bg-neutral-800 border border-neutral-700 focus:outline-none"
             />
           </div>
@@ -65,14 +83,11 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full py-2 bg-white text-black rounded font-semibold hover:bg-gray-300 transition"
+            disabled={loading}
+            className="w-full py-2 bg-white text-black rounded font-semibold hover:bg-gray-300 transition disabled:opacity-50"
           >
-            Login
+            {loading ? "Signing in..." : "Login"}
           </button>
-
-          <p className="text-right text-sm text-gray-500 mt-2">
-            Lost your password?
-          </p>
         </form>
       </div>
     </div>
