@@ -153,7 +153,7 @@ function validateSession(token) {
       .prepare(
         `SELECT u.id, u.email FROM sessions s
          JOIN users u ON s.user_id = u.id
-         WHERE s.token = ? AND s.expires_at > datetime('now')`
+         WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`
       )
       .get(token);
     db.close();
@@ -309,14 +309,15 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
 
     if (parsedUrl.pathname !== "/api/ws/terminal") {
-      // Don't destroy — let Next.js handle other upgrade requests (HMR, etc.)
       return;
     }
 
+    console.log("[WS UPGRADE] Request to /api/ws/terminal received");
     const cookies = parseCookies(req.headers.cookie);
     const sessionToken = cookies["session"];
 
     if (!sessionToken) {
+      console.log("[WS UPGRADE] No session token found in cookies.");
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;
@@ -324,6 +325,7 @@ app.prepare().then(() => {
 
     const user = validateSession(sessionToken);
     if (!user) {
+      console.log("[WS UPGRADE] Invalid session token.");
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;
@@ -331,6 +333,7 @@ app.prepare().then(() => {
 
     const serverId = parsedUrl.query.serverId;
     if (!serverId) {
+      console.log("[WS UPGRADE] No serverId query param.");
       socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
       socket.destroy();
       return;
@@ -338,11 +341,13 @@ app.prepare().then(() => {
 
     const server = getServerById(serverId);
     if (!server) {
+      console.log("[WS UPGRADE] Server not found for id:", serverId);
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
       socket.destroy();
       return;
     }
 
+    console.log("[WS UPGRADE] Session valid, handing over to wss...");
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req, { server, user });
     });

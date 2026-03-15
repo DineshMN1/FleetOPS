@@ -17,13 +17,20 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    let term: any;
-    let ws: WebSocket;
-    let disposed = false;
+    let term: any = null;
+    let ws: WebSocket | null = null;
+    let cancelled = false; // true when this effect instance is cleaned up
 
     const init = async () => {
       const { Terminal } = await import("xterm");
       const { FitAddon } = await import("xterm-addon-fit");
+
+      // React StrictMode fires cleanup before this resolves on first mount.
+      // Bail out so only the second (kept) mount initializes the terminal.
+      if (cancelled) return;
+
+      // Clear any stale xterm canvas left by a previous instance in the same div
+      if (terminalRef.current) terminalRef.current.innerHTML = "";
 
       term = new Terminal({
         cursorBlink: true,
@@ -41,9 +48,15 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       term.open(terminalRef.current!);
-      fitAddon.fit();
 
-      const resizeObserver = new ResizeObserver(() => fitAddon.fit());
+      // Wait for layout so fitAddon calculates correct cols/rows
+      requestAnimationFrame(() => {
+        if (!cancelled) fitAddon.fit();
+      });
+
+      const resizeObserver = new ResizeObserver(() => {
+        if (!cancelled) fitAddon.fit();
+      });
       if (terminalRef.current) resizeObserver.observe(terminalRef.current);
 
       term.writeln(
@@ -57,7 +70,7 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
-        if (disposed) return;
+        if (cancelled) return;
         try {
           const msg = JSON.parse(event.data);
 
@@ -86,13 +99,11 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       };
 
       ws.onclose = () => {
-        if (!disposed && status !== "disconnected") {
-          setStatus("disconnected");
-        }
+        if (!cancelled) setStatus("disconnected");
       };
 
       ws.onerror = () => {
-        if (!disposed) {
+        if (!cancelled) {
           setStatus("error");
           setStatusMsg("WebSocket connection failed");
           term.writeln("\r\n\x1b[31mWebSocket connection failed.\x1b[0m");
@@ -100,7 +111,7 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       };
 
       term.onData((data: string) => {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
           const bytes = new TextEncoder().encode(data);
           let binary = "";
           bytes.forEach((b) => { binary += String.fromCharCode(b); });
@@ -109,7 +120,7 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       });
 
       term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "resize", cols, rows }));
         }
       });
@@ -118,7 +129,7 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
     init();
 
     return () => {
-      disposed = true;
+      cancelled = true;
       if (ws) ws.close();
       if (term) term.dispose();
       wsRef.current = null;
@@ -150,10 +161,10 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
           )}
           {status === "error" && (
             <a
-              href="/dashboard/settings"
+              href="/dashboard/sshkeys"
               className="text-xs text-yellow-400 hover:underline"
             >
-              Check Settings →
+              Check SSH Keys →
             </a>
           )}
           {onClose && (
