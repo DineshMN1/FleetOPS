@@ -11,10 +11,11 @@ export default function DashboardPage() {
   const fetchServers = async () => {
     try {
       const res = await fetch("/api/servers");
+      if (!res.ok) return;
       const data = await res.json();
-      setServers(data);
-    } catch (err) {
-      console.error("Failed to load servers", err);
+      if (Array.isArray(data)) setServers(data);
+    } catch {
+      // Transient network error (dev reload, etc.) — ignore silently
     }
   };
 
@@ -37,10 +38,10 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="text-white p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Fleet Dashboard</h2>
-        <span className="text-sm text-gray-500">{servers.length} server{servers.length !== 1 ? "s" : ""} configured</span>
+    <div className="text-white">
+      <div className="flex items-center justify-between mb-6 gap-2">
+        <h2 className="text-xl sm:text-2xl font-bold">Fleet Dashboard</h2>
+        <span className="text-sm text-gray-500 shrink-0">{servers.length} server{servers.length !== 1 ? "s" : ""} configured</span>
       </div>
 
       {servers.length === 0 ? (
@@ -60,17 +61,15 @@ export default function DashboardPage() {
             key={srv.id}
             className="mb-6 border border-neutral-800 rounded-lg p-4 bg-neutral-900/60"
           >
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold">{srv.name}</h3>
-                <p className="text-sm text-gray-400 font-mono">
+                <h3 className="text-base sm:text-lg font-semibold">{srv.name}</h3>
+                <p className="text-xs text-gray-400 font-mono">
                   {srv.username}@{srv.host}:{srv.port || 22}
                 </p>
-                <div className="flex items-center gap-3 mt-1">
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
                   {srv.ssh_key_name && (
-                    <span className="text-xs text-gray-500">
-                      Key: {srv.ssh_key_name}
-                    </span>
+                    <span className="text-xs text-gray-500">Key: {srv.ssh_key_name}</span>
                   )}
                   {srv.description && (
                     <span className="text-xs text-gray-600">{srv.description}</span>
@@ -78,7 +77,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <a
                   href={`/dashboard/monitor?serverId=${srv.id}`}
                   className="text-xs px-3 py-1.5 rounded border border-neutral-700 text-gray-400 hover:text-white hover:border-neutral-500 transition"
@@ -90,7 +89,7 @@ export default function DashboardPage() {
                     onClick={() => closeTerminal(srv.id)}
                     className="text-xs px-3 py-1.5 rounded border border-red-800 text-red-400 hover:bg-red-900/30 transition"
                   >
-                    Close Terminal
+                    Close
                   </button>
                 ) : (
                   <Button

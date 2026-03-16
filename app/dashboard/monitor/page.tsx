@@ -205,9 +205,9 @@ function MonitorContent() {
   return (
     <div className="space-y-6 text-white">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">Monitoring</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold">Monitoring</h1>
           <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
             live ? "border-green-800 bg-green-900/20 text-green-400" : "border-neutral-700 bg-neutral-800/50 text-gray-500"
           }`}>
@@ -218,7 +218,7 @@ function MonitorContent() {
         <select
           value={selectedId || ""}
           onChange={(e) => setSelectedId(e.target.value || null)}
-          className="bg-neutral-800 border border-neutral-700 text-sm rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-neutral-500"
+          className="bg-neutral-800 border border-neutral-700 text-sm rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-neutral-500 w-full sm:w-auto"
         >
           <option value="">Local Server</option>
           {servers.map((srv) => (
@@ -242,7 +242,7 @@ function MonitorContent() {
 
       {/* Status bar */}
       {stats && (
-        <div className="flex items-center gap-6 text-sm text-gray-500 bg-neutral-900/50 border border-neutral-800 rounded-xl px-4 py-3 flex-wrap">
+        <div className="flex items-center gap-3 sm:gap-6 text-sm text-gray-500 bg-neutral-900/50 border border-neutral-800 rounded-xl px-4 py-3 flex-wrap">
           <span className="flex items-center gap-1.5"><Server size={13} /> <span className="text-gray-300">{stats.hostname}</span></span>
           {stats.platform && <span className="flex items-center gap-1.5"><Activity size={13} /> <span className="text-gray-300">{stats.platform}</span></span>}
           <span>Uptime: <span className="text-gray-300">{formatUptime(stats.uptime)}</span></span>

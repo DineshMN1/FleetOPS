@@ -4,6 +4,8 @@ import { validateSession } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 
+export const dynamic = "force-dynamic";
+
 async function getUser(req?: NextRequest) {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
@@ -16,7 +18,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const row = db
-    .prepare("SELECT id, email, first_name, last_name, avatar FROM users WHERE id = ?")
+    .prepare("SELECT id, email, first_name, last_name, avatar, photo FROM users WHERE id = ?")
     .get(user.id) as any;
 
   return NextResponse.json(row ?? { error: "Not found" });
@@ -27,7 +29,7 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { firstName, lastName, email, currentPassword, newPassword, avatar } = body;
+  const { firstName, lastName, email, currentPassword, newPassword, avatar, photo } = body;
 
   // If changing password, verify current password first
   if (newPassword) {
@@ -47,13 +49,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Update profile fields
-  if (firstName !== undefined || lastName !== undefined || email !== undefined || avatar !== undefined) {
+  if (firstName !== undefined || lastName !== undefined || email !== undefined || avatar !== undefined || photo !== undefined) {
     const updates: string[] = [];
     const values: any[] = [];
 
     if (firstName !== undefined) { updates.push("first_name = ?"); values.push(firstName.trim()); }
     if (lastName !== undefined)  { updates.push("last_name = ?");  values.push(lastName.trim()); }
     if (avatar !== undefined)    { updates.push("avatar = ?");     values.push(avatar); }
+    if (photo !== undefined)     { updates.push("photo = ?");      values.push(photo); }
     if (email !== undefined && email.trim()) {
       // Check uniqueness
       const existing = db.prepare("SELECT id FROM users WHERE email = ? AND id != ?").get(email.trim().toLowerCase(), user.id);
@@ -69,7 +72,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updated = db
-    .prepare("SELECT id, email, first_name, last_name, avatar FROM users WHERE id = ?")
+    .prepare("SELECT id, email, first_name, last_name, avatar, photo FROM users WHERE id = ?")
     .get(user.id) as any;
 
   return NextResponse.json(updated);

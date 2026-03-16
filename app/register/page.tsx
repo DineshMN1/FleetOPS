@@ -98,6 +98,7 @@ export default function RegisterPage() {
                 placeholder="admin@example.com"
                 required
                 autoComplete="email"
+                suppressHydrationWarning
                 className="w-full px-3 py-2.5 rounded-lg bg-neutral-800/80 border border-neutral-700 text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-green-500/60 focus:ring-1 focus:ring-green-500/20 transition"
               />
             </div>

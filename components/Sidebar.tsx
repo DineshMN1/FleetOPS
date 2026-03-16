@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Activity, Server, Key,
-  ChevronLeft, ChevronRight, LogOut, User, ChevronUp,
+  ChevronLeft, ChevronRight, LogOut, User, ChevronUp, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -42,11 +42,14 @@ function NavItem({ href, icon: Icon, label, collapsed, active }: {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [userEmail, setUserEmail] = useState("Admin");
+  const [userAvatar, setUserAvatar] = useState("");  // emoji
+  const [userPhoto, setUserPhoto] = useState("");    // base64 data URL
+  const [userName, setUserName] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
 
@@ -55,11 +58,25 @@ export default function Sidebar() {
     if (saved === "true") setCollapsed(true);
   }, []);
 
-  useEffect(() => {
-    fetch("/api/me")
+  const fetchProfile = () => {
+    fetch("/api/profile")
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d?.email) setUserEmail(d.email); })
+      .then((d) => {
+        if (!d) return;
+        if (d.email) setUserEmail(d.email);
+        setUserAvatar(d.avatar ?? "");
+        setUserPhoto(d.photo ?? "");
+        const name = [d.first_name, d.last_name].filter(Boolean).join(" ");
+        setUserName(name);
+      })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchProfile();
+    // Re-fetch when profile page saves
+    window.addEventListener("profileUpdated", fetchProfile);
+    return () => window.removeEventListener("profileUpdated", fetchProfile);
   }, []);
 
   // Close popup when clicking outside
@@ -84,7 +101,20 @@ export default function Sidebar() {
     router.push("/login");
   };
 
-  const initial = userEmail.charAt(0).toUpperCase();
+  const initial = userName
+    ? userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : userEmail.charAt(0).toUpperCase();
+
+  const AvatarCircle = ({ size = "w-7 h-7", text = "text-xs" }: { size?: string; text?: string }) => (
+    <div className={`${size} rounded-full bg-neutral-700 flex items-center justify-center ${text} font-semibold text-white shrink-0 overflow-hidden`}>
+      {userPhoto
+        ? <img src={userPhoto} alt="avatar" className="w-full h-full object-cover" />
+        : userAvatar
+        ? <span className="leading-none">{userAvatar}</span>
+        : <span>{initial}</span>
+      }
+    </div>
+  );
 
   /* ── ACCOUNT POPUP ── */
   const AccountPopup = () => (
@@ -105,7 +135,7 @@ export default function Sidebar() {
         <Link href="/dashboard/remoteservers" onClick={() => setAccountOpen(false)}>
           <div className="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-neutral-800/70 transition-colors cursor-pointer">
             <Server size={14} className="text-neutral-500" />
-            Remote Servers
+            Remote Serv
           </div>
         </Link>
         <Link href="/dashboard/sshkeys" onClick={() => setAccountOpen(false)}>
@@ -129,11 +159,11 @@ export default function Sidebar() {
   /* ── COLLAPSED ── */
   if (collapsed) {
     return (
-      <div className="w-[58px] h-screen bg-[#0f0f0f] flex flex-col items-center border-r border-neutral-800/80 shrink-0 relative overflow-visible">
+      <div className="w-[58px] h-[100dvh] bg-[#0f0f0f] flex flex-col items-center border-r border-neutral-800/80 shrink-0 relative overflow-visible">
         {/* Toggle */}
         <button
           onClick={toggle}
-          className="absolute -right-3.5 top-4 z-50 w-7 h-7 flex items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors shadow-lg"
+          className="hidden md:flex absolute -right-3.5 top-4 z-50 w-7 h-7 items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors shadow-lg"
           title="Expand"
         >
           <ChevronRight size={13} />
@@ -159,9 +189,9 @@ export default function Sidebar() {
           <button
             title={userEmail}
             onClick={() => router.push("/dashboard/profile")}
-            className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-semibold text-white hover:bg-neutral-600 transition-colors"
+            className="hover:opacity-80 transition-opacity"
           >
-            {initial}
+            <AvatarCircle size="w-8 h-8" />
           </button>
         </div>
       </div>
@@ -170,22 +200,31 @@ export default function Sidebar() {
 
   /* ── EXPANDED ── */
   return (
-    <div className="w-[240px] h-screen bg-[#0f0f0f] flex flex-col border-r border-neutral-800/80 shrink-0 relative overflow-visible">
+    <div className="w-[240px] h-[100dvh] bg-[#0f0f0f] flex flex-col border-r border-neutral-800/80 shrink-0 relative overflow-visible">
       {/* Toggle */}
       <button
         onClick={toggle}
-        className="absolute -right-3.5 top-4 z-50 w-7 h-7 flex items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors shadow-lg"
+        className="hidden md:flex absolute -right-3.5 top-4 z-50 w-7 h-7 items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors shadow-lg"
         title="Collapse"
       >
         <ChevronLeft size={13} />
       </button>
 
       {/* Logo */}
-      <div className="h-14 flex items-center border-b border-neutral-800/80 px-3 shrink-0">
+      <div className="h-14 flex items-center justify-between border-b border-neutral-800/80 px-3 shrink-0">
         <div className="flex items-center gap-2.5">
           <img src="/favicon.ico" alt="FleetOPS" className="w-7 h-7 rounded-md" style={{ filter: "invert(1)" }} />
           <span className="font-semibold text-white text-sm tracking-tight">FleetOPS</span>
         </div>
+        {/* Close button — only visible on mobile */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-md text-neutral-500 hover:bg-neutral-800 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -217,11 +256,9 @@ export default function Sidebar() {
           onClick={() => setAccountOpen((v) => !v)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-800/60 transition-colors group"
         >
-          <div className="w-7 h-7 rounded-full bg-neutral-700 flex items-center justify-center text-xs font-semibold text-white shrink-0">
-            {initial}
-          </div>
+          <AvatarCircle />
           <div className="min-w-0 flex-1 text-left">
-            <p className="text-[11px] text-neutral-500 leading-none mb-0.5">Account</p>
+            <p className="text-[11px] text-neutral-500 leading-none mb-0.5">{userName || "Account"}</p>
             <p className="text-xs text-white font-medium truncate">{userEmail}</p>
           </div>
           <ChevronUp

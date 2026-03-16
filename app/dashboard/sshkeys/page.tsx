@@ -148,12 +148,12 @@ export default function SSHKeysPage() {
 
   return (
     <div className="text-white">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-2">
         <div>
-          <h1 className="text-2xl font-bold">SSH Keys</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">SSH Keys</h1>
           <p className="text-gray-400 text-sm mt-1">Manage SSH credentials for server connections</p>
         </div>
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setDropdownOpen((v) => !v)}
             className="flex items-center gap-2 bg-white text-black text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition"
@@ -193,7 +193,7 @@ export default function SSHKeysPage() {
         </div>
       )}
 
-      {/* Keys table */}
+      {/* Keys list */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
         {keys.length === 0 ? (
           <div className="py-20 text-center">
@@ -202,76 +202,110 @@ export default function SSHKeysPage() {
             <p className="text-gray-600 text-sm mt-1">Generate or import a key to get started</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-neutral-800 text-xs text-gray-500 uppercase tracking-wide">
-                <th className="py-3 px-5 text-left w-8">#</th>
-                <th className="py-3 px-5 text-left">Name</th>
-                <th className="py-3 px-5 text-left">Type</th>
-                <th className="py-3 px-5 text-left">Public Key</th>
-                <th className="py-3 px-5 text-left">Created</th>
-                <th className="py-3 px-5 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((key, i) => (
-                <tr key={key.id} className="border-t border-neutral-800 hover:bg-neutral-800/30 transition">
-                  <td className="py-4 px-5 text-gray-500 font-mono text-xs">{i + 1}</td>
-                  <td className="py-4 px-5">
-                    <div className="flex items-center gap-2">
-                      <Key size={13} className="text-gray-500 shrink-0" />
-                      <div>
-                        <p className="font-medium text-white">{key.name}</p>
-                        {key.description && (
-                          <p className="text-xs text-gray-500">{key.description}</p>
-                        )}
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-800 text-xs text-gray-500 uppercase tracking-wide">
+                    <th className="py-3 px-5 text-left w-8">#</th>
+                    <th className="py-3 px-5 text-left">Name</th>
+                    <th className="py-3 px-5 text-left">Type</th>
+                    <th className="py-3 px-5 text-left">Public Key</th>
+                    <th className="py-3 px-5 text-left">Created</th>
+                    <th className="py-3 px-5 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keys.map((key, i) => (
+                    <tr key={key.id} className="border-t border-neutral-800 hover:bg-neutral-800/30 transition">
+                      <td className="py-4 px-5 text-gray-500 font-mono text-xs">{i + 1}</td>
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-2">
+                          <Key size={13} className="text-gray-500 shrink-0" />
+                          <div>
+                            <p className="font-medium text-white">{key.name}</p>
+                            {key.description && <p className="text-xs text-gray-500">{key.description}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-5"><TypeBadge type={key.type || "ed25519"} /></td>
+                      <td className="py-4 px-5 max-w-xs">
+                        <code className="text-xs font-mono text-gray-300 bg-neutral-800 px-2 py-1 rounded block truncate">
+                          {key.public_key?.split(" ").slice(0, 2).join(" ").slice(0, 60)}…
+                        </code>
+                      </td>
+                      <td className="py-4 px-5 text-gray-500 text-xs">{formatDate(key.created_at)}</td>
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => copyKey(key.id, key.public_key)}
+                            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-gray-400 hover:text-white hover:border-neutral-500 transition">
+                            {copiedId === key.id ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                            {copiedId === key.id ? "Copied" : "Copy"}
+                          </button>
+                          {deleteConfirm === key.id ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleDelete(key.id)}
+                                className="text-xs px-2.5 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-white transition">Confirm</button>
+                              <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-500 hover:text-white px-1">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setDeleteConfirm(key.id)}
+                              className="p-1.5 rounded-lg border border-neutral-700 text-gray-500 hover:text-red-400 hover:border-red-800 transition">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-neutral-800">
+              {keys.map((key) => (
+                <div key={key.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Key size={14} className="text-gray-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-white text-sm truncate">{key.name}</p>
+                        {key.description && <p className="text-xs text-gray-500 truncate">{key.description}</p>}
                       </div>
                     </div>
-                  </td>
-                  <td className="py-4 px-5">
                     <TypeBadge type={key.type || "ed25519"} />
-                  </td>
-                  <td className="py-4 px-5 max-w-xs">
-                    <code className="text-xs font-mono text-gray-300 bg-neutral-800 px-2 py-1 rounded block truncate">
-                      {key.public_key?.split(" ").slice(0, 2).join(" ").slice(0, 60)}…
-                    </code>
-                  </td>
-                  <td className="py-4 px-5 text-gray-500 text-xs">{formatDate(key.created_at)}</td>
-                  <td className="py-4 px-5">
+                  </div>
+                  <code className="text-xs font-mono text-gray-400 bg-neutral-800 px-2.5 py-1.5 rounded-lg block truncate">
+                    {key.public_key?.split(" ").slice(0, 2).join(" ").slice(0, 50)}…
+                  </code>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">{formatDate(key.created_at)}</span>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => copyKey(key.id, key.public_key)}
-                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-gray-400 hover:text-white hover:border-neutral-500 transition"
-                      >
+                      <button onClick={() => copyKey(key.id, key.public_key)}
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-700 text-gray-400 hover:text-white transition">
                         {copiedId === key.id ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
                         {copiedId === key.id ? "Copied" : "Copy"}
                       </button>
                       {deleteConfirm === key.id ? (
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleDelete(key.id)}
-                            className="text-xs px-2.5 py-1.5 rounded-lg bg-red-800 hover:bg-red-700 text-white transition"
-                          >
-                            Confirm
-                          </button>
-                          <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-500 hover:text-white px-1">
-                            Cancel
-                          </button>
+                          <button onClick={() => handleDelete(key.id)}
+                            className="text-xs px-2.5 py-1.5 rounded-lg bg-red-800 text-white">Confirm</button>
+                          <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-500 px-1">Cancel</button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setDeleteConfirm(key.id)}
-                          className="p-1.5 rounded-lg border border-neutral-700 text-gray-500 hover:text-red-400 hover:border-red-800 transition"
-                        >
+                        <button onClick={() => setDeleteConfirm(key.id)}
+                          className="p-1.5 rounded-lg border border-neutral-700 text-gray-500 hover:text-red-400 hover:border-red-800 transition">
                           <Trash2 size={13} />
                         </button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 

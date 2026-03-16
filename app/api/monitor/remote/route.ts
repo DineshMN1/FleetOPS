@@ -364,7 +364,8 @@ export async function GET(req: NextRequest) {
       const detectedOS = osMatch?.[1] ?? "Linux";
       // Remove the OS header line then split by separator
       const body = raw.replace(/FLEETOPS_OS=\S+\s*\n?/, "");
-      const parts = body.split("FLEETOPS_SEP").map((s) => s.trim());
+      // parts[0] is always "" (before first separator) — skip it with slice(1)
+      const parts = body.split("FLEETOPS_SEP").map((s) => s.trim()).slice(1);
 
       if (detectedOS === "Darwin") {
         stats = parseMacOS(parts, id, server.host);

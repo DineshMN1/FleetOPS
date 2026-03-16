@@ -103,104 +103,99 @@ function ServerCard({
   }, []);
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 flex flex-col gap-4 hover:border-neutral-700 transition-colors">
+    <div className={`bg-neutral-900 border rounded-xl flex flex-col transition-colors ${
+      showTerminal ? "border-neutral-600" : "border-neutral-800 hover:border-neutral-700"
+    }`}>
       {/* Card header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center shrink-0">
-            <Server size={15} className="text-blue-400" />
+      <div className="p-4 flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-neutral-800 border border-neutral-700/60 flex items-center justify-center shrink-0">
+            <Server size={16} className="text-blue-400" />
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-white text-sm truncate">{server.name}</p>
-            {server.description && (
-              <p className="text-xs text-gray-500 truncate">{server.description}</p>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-white text-sm">{server.name}</p>
+              <StatusBadge status={server.status} />
+            </div>
+            <p className="text-xs text-neutral-500 font-mono mt-0.5">
+              {server.username}@{server.host}:{server.port || 22}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <StatusBadge status={server.status} />
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="p-1 rounded text-gray-500 hover:text-white hover:bg-neutral-800 transition"
-            >
-              <MoreVertical size={15} />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-2xl z-20 w-44 py-1 text-sm">
-                <button
-                  onClick={() => { setShowTerminal(true); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-gray-300 hover:bg-neutral-700 hover:text-white transition"
-                >
-                  <TerminalIcon size={13} /> Terminal
-                </button>
-                <a
-                  href={`/dashboard/monitor?serverId=${server.id}`}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-gray-300 hover:bg-neutral-700 hover:text-white transition"
-                >
-                  <Activity size={13} /> Monitor
-                </a>
-                <div className="border-t border-neutral-700 my-1" />
-                <button
-                  onClick={() => { onEdit(server); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-gray-300 hover:bg-neutral-700 hover:text-white transition"
-                >
-                  <Pencil size={13} /> Edit
-                </button>
-                <button
-                  onClick={() => { onDelete(server.id); setMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-900/30 hover:text-red-300 transition"
-                >
-                  <Trash2 size={13} /> Delete
-                </button>
-              </div>
-            )}
-          </div>
+
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="p-1.5 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition"
+          >
+            <MoreVertical size={15} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-xl shadow-2xl z-20 w-44 py-1 text-sm overflow-hidden">
+              <button
+                onClick={() => { setShowTerminal(true); setMenuOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+              >
+                <TerminalIcon size={13} /> Terminal
+              </button>
+              <a
+                href={`/dashboard/monitor?serverId=${server.id}`}
+                className="flex items-center gap-2.5 px-3 py-2.5 text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+              >
+                <Activity size={13} /> Monitor
+              </a>
+              <div className="border-t border-neutral-700 my-1" />
+              <button
+                onClick={() => { onEdit(server); setMenuOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-neutral-300 hover:bg-neutral-700 hover:text-white transition"
+              >
+                <Pencil size={13} /> Edit
+              </button>
+              <button
+                onClick={() => { onDelete(server.id); setMenuOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-red-400 hover:bg-red-900/30 hover:text-red-300 transition"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Server details */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2.5 text-sm">
-          <Globe size={13} className="text-gray-500 shrink-0" />
-          <span className="font-mono text-gray-300 text-xs">{server.host}:{server.port || 22}</span>
-        </div>
-        <div className="flex items-center gap-2.5 text-sm">
-          <User size={13} className="text-gray-500 shrink-0" />
-          <span className="font-mono text-gray-300 text-xs">{server.username}</span>
-        </div>
-        <div className="flex items-center gap-2.5 text-sm">
-          <Key size={13} className="text-gray-500 shrink-0" />
+      {/* Server meta row */}
+      <div className="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Key size={11} className="text-neutral-600 shrink-0" />
           {server.ssh_key_name ? (
-            <span className="text-green-400 text-xs flex items-center gap-1">
-              <ShieldCheck size={11} /> {server.ssh_key_name}
+            <span className="text-xs text-green-400 flex items-center gap-1">
+              <ShieldCheck size={10} /> {server.ssh_key_name}
             </span>
           ) : (
-            <span className="text-yellow-400 text-xs">No key assigned</span>
+            <span className="text-xs text-yellow-500">No key assigned</span>
           )}
         </div>
         {server.created_at && (
-          <div className="flex items-center gap-2.5 text-sm">
-            <Clock size={13} className="text-gray-500 shrink-0" />
-            <span className="text-gray-500 text-xs">{formatRelativeTime(server.created_at)}</span>
+          <div className="flex items-center gap-1.5">
+            <Clock size={11} className="text-neutral-600 shrink-0" />
+            <span className="text-xs text-neutral-500">{formatRelativeTime(server.created_at)}</span>
           </div>
         )}
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-2 border-t border-neutral-800">
+      <div className="px-4 pb-4 flex gap-2 border-t border-neutral-800 pt-3">
         <a
           href={`/dashboard/monitor?serverId=${server.id}`}
-          className="flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg border border-neutral-700 text-gray-400 hover:text-white hover:border-neutral-500 transition"
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg border border-neutral-700 text-neutral-400 hover:text-white hover:border-neutral-500 transition font-medium"
         >
           <Activity size={12} /> Monitor
         </a>
         <button
           onClick={() => setShowTerminal((v) => !v)}
-          className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg transition ${
+          className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg font-medium transition ${
             showTerminal
-              ? "bg-red-900/30 border border-red-800 text-red-400"
-              : "bg-neutral-800 hover:bg-neutral-700 text-white"
+              ? "bg-red-950/50 border border-red-800/60 text-red-400 hover:bg-red-950"
+              : "bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-white"
           }`}
         >
           <TerminalIcon size={12} />
@@ -208,8 +203,9 @@ function ServerCard({
         </button>
       </div>
 
+      {/* Terminal panel */}
       {showTerminal && (
-        <div className="mt-1">
+        <div className="px-3 pb-3">
           <SSHConsole server={server} onClose={() => setShowTerminal(false)} />
         </div>
       )}

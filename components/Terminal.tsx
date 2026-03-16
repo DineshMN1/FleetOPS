@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X, AlertTriangle, Key } from "lucide-react";
 import "xterm/css/xterm.css";
 
 interface TerminalProps {
@@ -11,7 +12,7 @@ interface TerminalProps {
 export default function SSHConsole({ server, onClose }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<"connecting" | "connected" | "error" | "disconnected">("connecting");
-  const [statusMsg, setStatusMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -19,17 +20,14 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
 
     let term: any = null;
     let ws: WebSocket | null = null;
-    let cancelled = false; // true when this effect instance is cleaned up
+    let cancelled = false;
 
     const init = async () => {
       const { Terminal } = await import("xterm");
       const { FitAddon } = await import("xterm-addon-fit");
 
-      // React StrictMode fires cleanup before this resolves on first mount.
-      // Bail out so only the second (kept) mount initializes the terminal.
       if (cancelled) return;
 
-      // Clear any stale xterm canvas left by a previous instance in the same div
       if (terminalRef.current) terminalRef.current.innerHTML = "";
 
       term = new Terminal({
@@ -49,7 +47,6 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       term.loadAddon(fitAddon);
       term.open(terminalRef.current!);
 
-      // Wait for layout so fitAddon calculates correct cols/rows
       requestAnimationFrame(() => {
         if (!cancelled) fitAddon.fit();
       });
@@ -59,21 +56,16 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
       });
       if (terminalRef.current) resizeObserver.observe(terminalRef.current);
 
-      term.writeln(
-        `\x1b[33mConnecting to ${server.name} (${server.host}:${server.port || 22})...\x1b[0m`
-      );
+      term.writeln(`\x1b[33mConnecting to ${server.name} (${server.host}:${server.port || 22})...\x1b[0m`);
 
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      ws = new WebSocket(
-        `${protocol}//${window.location.host}/api/ws/terminal?serverId=${server.id}`
-      );
+      ws = new WebSocket(`${protocol}//${window.location.host}/api/ws/terminal?serverId=${server.id}`);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
         if (cancelled) return;
         try {
           const msg = JSON.parse(event.data);
-
           if (msg.type === "data") {
             const binary = atob(msg.data);
             const bytes = new Uint8Array(binary.length);
@@ -82,15 +74,13 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
           } else if (msg.type === "status") {
             if (msg.status === "connected") {
               setStatus("connected");
-              setStatusMsg(msg.message || "");
             } else if (msg.status === "closed") {
               setStatus("disconnected");
-              setStatusMsg("Session closed");
               term.writeln("\r\n\x1b[31mSSH session closed.\x1b[0m");
             }
           } else if (msg.type === "error") {
             setStatus("error");
-            setStatusMsg(msg.message || "Connection error");
+            setErrorMsg(msg.message || "Connection error");
             term.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
           }
         } catch {
@@ -98,14 +88,11 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
         }
       };
 
-      ws.onclose = () => {
-        if (!cancelled) setStatus("disconnected");
-      };
-
+      ws.onclose = () => { if (!cancelled) setStatus("disconnected"); };
       ws.onerror = () => {
         if (!cancelled) {
           setStatus("error");
-          setStatusMsg("WebSocket connection failed");
+          setErrorMsg("WebSocket connection failed");
           term.writeln("\r\n\x1b[31mWebSocket connection failed.\x1b[0m");
         }
       };
@@ -136,50 +123,65 @@ export default function SSHConsole({ server, onClose }: TerminalProps) {
     };
   }, [server.id]);
 
-  const statusColor = {
-    connecting: "bg-blue-400 animate-pulse",
-    connected: "bg-green-400",
-    error: "bg-red-400",
+  const statusDot = {
+    connecting: "bg-yellow-400 animate-pulse",
+    connected:  "bg-green-400",
+    error:      "bg-red-400",
     disconnected: "bg-neutral-500",
   }[status];
 
+  const statusLabel = {
+    connecting:   "Connecting...",
+    connected:    "Connected",
+    error:        "Error",
+    disconnected: "Disconnected",
+  }[status];
+
   return (
-    <div className="w-full border border-neutral-700 rounded-lg bg-black overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-neutral-900 border-b border-neutral-700">
+    <div className="w-full rounded-xl overflow-hidden border border-neutral-700/80 shadow-2xl bg-[#0a0a0a]">
+      {/* Terminal title bar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-neutral-900/90 border-b border-neutral-800 relative">
+        {/* Connection info */}
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${statusColor}`} />
-          <span className="text-xs text-gray-400 font-mono">
-            {server.username ? `${server.username}@` : ""}
-            {server.host}:{server.port || 22}
+          <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
+          <span className="text-xs text-neutral-400 font-mono">
+            {server.username ? `${server.username}@` : ""}{server.host}
           </span>
-          <span className="text-xs text-gray-600">— {server.name}</span>
+          <span className="text-[10px] text-neutral-600">·</span>
+          <span className="text-[10px] text-neutral-500">{statusLabel}</span>
         </div>
-        <div className="flex items-center gap-3">
-          {statusMsg && (
-            <span className="text-xs text-gray-600 max-w-48 truncate">{statusMsg}</span>
-          )}
+
+        {/* Right: error link or close */}
+        <div className="flex items-center gap-2">
           {status === "error" && (
             <a
               href="/dashboard/sshkeys"
-              className="text-xs text-yellow-400 hover:underline"
+              className="flex items-center gap-1 text-[10px] text-yellow-500 hover:text-yellow-400 transition"
             >
-              SSH Keys →
+              <Key size={10} /> Fix keys
             </a>
           )}
           {onClose && (
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-white text-xs px-2 py-0.5 rounded hover:bg-neutral-700"
+              className="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-white hover:bg-neutral-700 transition"
             >
-              ✕
+              <X size={12} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Terminal */}
-      <div ref={terminalRef} className="h-80 p-1" />
+      {/* Error banner */}
+      {status === "error" && errorMsg && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-red-950/40 border-b border-red-900/50 text-red-400 text-xs">
+          <AlertTriangle size={12} className="shrink-0" />
+          {errorMsg}
+        </div>
+      )}
+
+      {/* xterm canvas */}
+      <div ref={terminalRef} className="h-72 md:h-80 p-1" />
     </div>
   );
 }

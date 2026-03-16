@@ -75,6 +75,9 @@ if (!userCols.some((c: any) => c.name === "last_name")) {
 if (!userCols.some((c: any) => c.name === "avatar")) {
   db.prepare("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT ''").run();
 }
+if (!userCols.some((c: any) => c.name === "photo")) {
+  db.prepare("ALTER TABLE users ADD COLUMN photo TEXT DEFAULT ''").run();
+}
 
 // Migrations for existing databases
 const serverCols = db.prepare("PRAGMA table_info(remote_servers)").all() as any[];

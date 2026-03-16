@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { User, Eye, EyeOff, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Eye, EyeOff, Save, Camera, X } from "lucide-react";
 
-const AVATARS = [
-  "👤", "🧑‍💻", "👩‍💻", "🧑‍🚀", "👨‍🔬", "👩‍🔬",
-  "🧑‍🎨", "👨‍💼", "👩‍💼", "🧙", "🥷", "🤖",
-];
+
 
 export default function ProfilePage() {
   const [firstName, setFirstName]   = useState("");
@@ -15,10 +12,12 @@ export default function ProfilePage() {
   const [currentPw, setCurrentPw]   = useState("");
   const [newPw, setNewPw]           = useState("");
   const [avatar, setAvatar]         = useState("");
+  const [photo, setPhoto]           = useState<string>("");   // base64 data URL
   const [showCurr, setShowCurr]     = useState(false);
   const [showNew, setShowNew]       = useState(false);
   const [saving, setSaving]         = useState(false);
   const [msg, setMsg]               = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -29,15 +28,36 @@ export default function ProfilePage() {
         setLastName(d.last_name ?? "");
         setEmail(d.email ?? "");
         setAvatar(d.avatar ?? "");
+        setPhoto(d.photo ?? "");
       });
   }, []);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setMsg({ type: "error", text: "Photo must be under 2 MB" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(reader.result as string);
+      setAvatar(""); // clear emoji when photo is set
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    setPhoto("");
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMsg(null);
 
-    const body: any = { firstName, lastName, email, avatar };
+    const body: any = { firstName, lastName, email, avatar, photo };
     if (newPw) { body.currentPassword = currentPw; body.newPassword = newPw; }
 
     const res = await fetch("/api/profile", {
@@ -51,17 +71,33 @@ export default function ProfilePage() {
     if (!res.ok) {
       setMsg({ type: "error", text: data.error ?? "Failed to save" });
     } else {
-      setMsg({ type: "success", text: "Profile updated successfully" });
+      // Update state from saved response so UI reflects what's in the DB
+      setFirstName(data.first_name ?? "");
+      setLastName(data.last_name ?? "");
+      setEmail(data.email ?? "");
+      setAvatar(data.avatar ?? "");
+      setPhoto(data.photo ?? "");
       setCurrentPw("");
       setNewPw("");
+      setMsg({ type: "success", text: "Profile updated successfully" });
+      window.dispatchEvent(new Event("profileUpdated"));
     }
   };
 
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || email.charAt(0).toUpperCase() || "A";
 
+  // Decide what to show in the avatar preview
+  const avatarPreview = photo ? (
+    <img src={photo} alt="avatar" className="w-full h-full object-cover rounded-full" />
+  ) : avatar ? (
+    <span className="text-2xl">{avatar}</span>
+  ) : (
+    <span className="text-sm font-bold">{initials}</span>
+  );
+
   return (
-    <div className="max-w-2xl text-white">
-      <form onSubmit={handleSave}>
+    <div className="min-h-full flex items-center justify-center p-6 text-white">
+      <form onSubmit={handleSave} className="w-full max-w-2xl">
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-800">
@@ -76,6 +112,44 @@ export default function ProfilePage() {
 
           {/* Body */}
           <div className="px-6 py-6 space-y-5">
+            {/* Photo upload */}
+            <div>
+              <label className="block text-xs font-medium text-neutral-400 mb-2">Profile Photo</label>
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 rounded-full bg-neutral-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {avatarPreview}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs rounded-lg hover:bg-neutral-700 transition"
+                  >
+                    <Camera size={13} />
+                    Upload photo
+                  </button>
+                  {photo && (
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-neutral-800 border border-neutral-700 text-red-400 text-xs rounded-lg hover:bg-neutral-700 transition"
+                    >
+                      <X size={13} />
+                      Remove photo
+                    </button>
+                  )}
+                  <p className="text-xs text-neutral-600">JPG, PNG or GIF · Max 2 MB</p>
+                </div>
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+            </div>
+
             {/* Name row */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -108,6 +182,7 @@ export default function ProfilePage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
+                suppressHydrationWarning
                 className="w-full px-3 py-2.5 rounded-lg bg-neutral-800 border border-neutral-700 text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition"
               />
             </div>
@@ -120,7 +195,7 @@ export default function ProfilePage() {
                   type={showCurr ? "text" : "password"}
                   value={currentPw}
                   onChange={(e) => setCurrentPw(e.target.value)}
-                  placeholder="Current Password"
+                  placeholder="Required only if changing password"
                   autoComplete="current-password"
                   className="w-full px-3 py-2.5 pr-10 rounded-lg bg-neutral-800 border border-neutral-700 text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition"
                 />
@@ -133,13 +208,13 @@ export default function ProfilePage() {
 
             {/* New Password */}
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-neutral-400 mb-1.5">New Password</label>
               <div className="relative">
                 <input
                   type={showNew ? "text" : "password"}
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
-                  placeholder="New password (leave blank to keep current)"
+                  placeholder="Leave blank to keep current password"
                   autoComplete="new-password"
                   className="w-full px-3 py-2.5 pr-10 rounded-lg bg-neutral-800 border border-neutral-700 text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition"
                 />
@@ -150,34 +225,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Avatar */}
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2">Avatar</label>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Initials option */}
-                <button
-                  type="button"
-                  onClick={() => setAvatar("")}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all
-                    ${avatar === "" ? "ring-2 ring-white bg-neutral-600" : "bg-neutral-700 hover:bg-neutral-600"}`}
-                >
-                  {initials}
-                </button>
-
-                {/* Emoji avatars */}
-                {AVATARS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => setAvatar(emoji)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all
-                      ${avatar === emoji ? "ring-2 ring-white bg-neutral-700" : "bg-neutral-800 hover:bg-neutral-700"}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Feedback */}
             {msg && (

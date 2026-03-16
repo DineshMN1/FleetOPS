@@ -8,7 +8,10 @@
       "Bash(cmd /c \"taskkill /F /IM node.exe\")",
       "Bash(cmd /c \"netstat -ano | findstr :3000\")",
       "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in \\(''netstat -aon ^| findstr :3000 ^| findstr LISTENING''\\) do taskkill /F /PID %a\")",
-      "Bash(cmd /c \"netstat -ano\")"
+      "Bash(cmd /c \"netstat -ano\")",
+      "Bash(npm install:*)",
+      "Bash(node scripts/gen-icons.mjs)",
+      "Bash(node -e \"require\\(''clsx''\\)\")"
     ]
   }
 }
