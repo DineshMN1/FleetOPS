@@ -21,7 +21,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  reactCompiler: true,
+  // Prevent Turbopack/webpack from trying to bundle native Node.js modules
+  serverExternalPackages: ["ssh2", "better-sqlite3", "cpu-features", "sshpk"],
   async headers() {
     return [
       {

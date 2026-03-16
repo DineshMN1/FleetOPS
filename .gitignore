@@ -15,6 +15,13 @@ dist/
 # TypeScript
 *.tsbuildinfo
 
+# SQLite WAL files
+db/*.db-shm
+db/*.db-wal
+
+# Junk
+datetime
+
 # Environment files
 .env
 .env.local
@@ -42,6 +49,9 @@ pnpm-debug.log*
 .idea/
 *.swp
 *.swo
+
+# Claude Code
+.claude/
 
 # OS metadata
 .DS_Store

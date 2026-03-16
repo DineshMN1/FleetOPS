@@ -371,7 +371,7 @@ export async function GET(req: NextRequest) {
         stats = parseMacOS(parts, id, server.host);
       } else {
         // Linux (default for FreeBSD etc. too — /proc/stat based)
-        stats = parseLinux(parts, id, server.host);
+        stats = parseLinux(parts, id);
       }
     }
 

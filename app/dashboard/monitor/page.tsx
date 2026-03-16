@@ -58,11 +58,10 @@ function StatCard({
             <CardTitle className="text-gray-400 font-medium">{title}</CardTitle>
           </div>
           {percent > 0 && (
-            <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${
-              pct > 85 ? "bg-red-900/40 text-red-400" :
-              pct > 65 ? "bg-yellow-900/40 text-yellow-400" :
-              "bg-neutral-800 text-gray-400"
-            }`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${pct > 85 ? "bg-red-900/40 text-red-400" :
+                pct > 65 ? "bg-yellow-900/40 text-yellow-400" :
+                  "bg-neutral-800 text-gray-400"
+              }`}>
               {pct.toFixed(1)}%
             </span>
           )}
@@ -155,7 +154,7 @@ function MonitorContent() {
   const [live, setLive] = useState(false);
 
   useEffect(() => {
-    fetch("/api/servers").then((r) => r.json()).then((d) => setServers(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/servers").then((r) => r.json()).then((d) => setServers(Array.isArray(d) ? d : [])).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -208,9 +207,8 @@ function MonitorContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-xl sm:text-2xl font-semibold">Monitoring</h1>
-          <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${
-            live ? "border-green-800 bg-green-900/20 text-green-400" : "border-neutral-700 bg-neutral-800/50 text-gray-500"
-          }`}>
+          <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${live ? "border-green-800 bg-green-900/20 text-green-400" : "border-neutral-700 bg-neutral-800/50 text-gray-500"
+            }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${live ? "bg-green-400 animate-pulse" : "bg-neutral-500"}`} />
             {live ? "Live" : "Connecting..."}
           </div>
@@ -220,7 +218,7 @@ function MonitorContent() {
           onChange={(e) => setSelectedId(e.target.value || null)}
           className="bg-neutral-800 border border-neutral-700 text-sm rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-neutral-500 w-full sm:w-auto"
         >
-          <option value="">Local Server</option>
+          <option value="">Host Server</option>
           {servers.map((srv) => (
             <option key={srv.id} value={String(srv.id)}>{srv.name} ({srv.host})</option>
           ))}
@@ -321,7 +319,7 @@ export default function MonitorPage() {
       <div className="space-y-6">
         <div className="h-8 w-48 bg-neutral-800 rounded animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[1,2,3,4].map(i => <div key={i} className="h-64 bg-neutral-900 border border-neutral-800 rounded-xl animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-neutral-900 border border-neutral-800 rounded-xl animate-pulse" />)}
         </div>
       </div>
     }>
