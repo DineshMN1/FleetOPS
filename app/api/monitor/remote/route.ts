@@ -243,7 +243,7 @@ function parseMacOS(parts: string[], serverId: number, serverHost: string): Reco
   for (const line of netLines.split("\n")) {
     if (line.startsWith("Name") || line.includes("lo") || !line.trim()) continue;
     const cols = line.trim().split(/\s+/);
-    if (cols.length >= 10 && cols[2] === "<Link#1>" || (cols[2] && cols[2].startsWith("<Link"))) {
+    if (cols.length >= 10 && (cols[2] === "<Link#1>" || cols[2].startsWith("<Link"))) {
       totalRx += parseInt(cols[6]) || 0;
       totalTx += parseInt(cols[9]) || 0;
     }
@@ -281,8 +281,8 @@ function parseWindows(raw: string, serverHost: string): Record<string, any> {
   return {
     cpuUsage: get("CPU").toFixed(1),
     memory: {
-      used: ((memTotalKB - memFreeKB) * 1024 / 1024 / 1024 / 1024).toFixed(2),
-      total: (memTotalKB * 1024 / 1024 / 1024 / 1024).toFixed(2),
+      used: ((memTotalKB - memFreeKB) / 1024 / 1024).toFixed(2),
+      total: (memTotalKB / 1024 / 1024).toFixed(2),
     },
     disk: {
       used: ((diskSize - diskFree) / 1024 / 1024 / 1024).toFixed(1),

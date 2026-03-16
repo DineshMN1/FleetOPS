@@ -36,7 +36,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const { email, password } = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const { email, password } = body;
+
+  if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
+    return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+  }
 
   const user = verifyUser(email, password) as
     | { id: number; email: string }

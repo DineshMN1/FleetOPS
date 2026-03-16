@@ -28,8 +28,18 @@ export async function PATCH(req: NextRequest) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const { firstName, lastName, email, currentPassword, newPassword, avatar, photo } = body;
+
+  // Limit photo/avatar to 2 MB (base64 string length)
+  const MAX_PHOTO_SIZE = 2 * 1024 * 1024;
+  if (photo !== undefined && typeof photo === "string" && photo.length > MAX_PHOTO_SIZE) {
+    return NextResponse.json({ error: "Photo exceeds 2 MB limit" }, { status: 400 });
+  }
+  if (avatar !== undefined && typeof avatar === "string" && avatar.length > MAX_PHOTO_SIZE) {
+    return NextResponse.json({ error: "Avatar exceeds 2 MB limit" }, { status: 400 });
+  }
 
   // If changing password, verify current password first
   if (newPassword) {
