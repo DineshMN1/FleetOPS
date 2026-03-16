@@ -23,14 +23,6 @@ interface SSHKey {
   created_at?: string;
 }
 
-function fingerprint(pubKey: string): string {
-  try {
-    const b64 = pubKey.split(" ")[1];
-    if (!b64) return "";
-    // Browser-compatible SHA256 fingerprint (approximate display only)
-    return "SHA256:…" + b64.slice(-8);
-  } catch { return ""; }
-}
 
 function formatDate(ts?: string) {
   if (!ts) return "";
@@ -44,6 +36,7 @@ export default function SSHKeysPage() {
   const [mode, setMode] = useState<ModalMode>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -371,6 +364,26 @@ export default function SSHKeysPage() {
                     {genResult.publicKey}
                   </pre>
                   <p className="text-xs text-gray-600 mt-1">Fingerprint: <span className="text-yellow-400/80 font-mono">{genResult.fingerprint}</span></p>
+                </div>
+                <div className="mb-5">
+                  <p className="text-xs text-gray-400 mb-1">One-line install command</p>
+                  <div className="flex items-center gap-2 bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2">
+                    <code className="text-xs font-mono text-blue-300 flex-1 break-all">
+                      {`echo "${genResult.publicKey}" >> ~/.ssh/authorized_keys`}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`echo "${genResult.publicKey}" >> ~/.ssh/authorized_keys`);
+                        setCopiedCmd(true);
+                        setTimeout(() => setCopiedCmd(false), 2000);
+                      }}
+                      className="shrink-0 p-1.5 rounded-lg border border-neutral-700 text-gray-400 hover:text-white hover:border-neutral-500 transition"
+                      title="Copy command"
+                    >
+                      {copiedCmd ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">Run this on your server to authorize this key.</p>
                 </div>
                 <div className="flex gap-2 justify-end">
                   <button
